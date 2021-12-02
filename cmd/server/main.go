@@ -1,7 +1,15 @@
 package main
 
 import (
-	"database/sql"
+	"github.com/labstack/echo/middleware"
+
+	"notes-api/database"
+	"notes-api/models"
+	rb "notes-api/rabit_mq"
+	"notes-api/repositories"
+	"os"
+)
+import (
 	"github.com/labstack/echo"
 	_ "github.com/mattn/go-sqlite3"
 
@@ -9,32 +17,27 @@ import (
 )
 
 func main() {
-	db := initDB("storage.db")
 
+	db := database.ConnectToDB(os.Getenv("DB_PATH"))
+
+	// migration
+	errMrg := db.AutoMigrate(&models.Note{})
+	if errMrg != nil {
+		panic("migrate error")
+	}
+	noteRepository := repositories.NewNoteRepository(db)
 	e := echo.New()
+	e.Use(middleware.Logger())
+	// RabitMQ
+	channel, queue := rb.ConnectChannel()
+	defer channel.Close()
 
-	e.GET("/notes", h.GetListNotes(db))
-	e.GET("/notes/:id", h.GetDetailNotes(db))
-	e.PUT("/notes/:id", h.PutNote(db))
-	e.POST("/notes", h.CreateNote(db))
-	e.DELETE("/notes/:id", h.DeleteNote(db))
+	e.GET("/notes", h.GetAllNotes(noteRepository, channel, queue))
+	e.GET("/notes/:id", h.GetDetailNotes(noteRepository, channel, queue))
+	e.PUT("/notes/:id", h.PutNote(noteRepository, channel, queue))
+	e.POST("/notes", h.CreateNote(noteRepository, channel, queue))
+	e.DELETE("/notes/:id", h.DeleteNote(noteRepository, channel, queue))
 
 	// Start as a web server
 	e.Logger.Fatal(e.Start(":8787"))
-}
-
-func initDB(filepath string) *sql.DB {
-	db, err := sql.Open("sqlite3", filepath)
-
-	// Here we check for any db errors then exit
-	if err != nil {
-		panic(err)
-	}
-
-	// If we don't get any errors but somehow still don't get a db connection
-	// we exit as well
-	if db == nil {
-		panic("db nil")
-	}
-	return db
 }

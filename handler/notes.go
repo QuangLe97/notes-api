@@ -1,129 +1,87 @@
 package handler
 
 import (
-	"database/sql"
+	"fmt"
+	"github.com/labstack/echo"
+	"github.com/streadway/amqp"
 	"log"
 	"net/http"
-	"strconv"
-
-	"github.com/labstack/echo"
-
 	m "notes-api/models"
+	rb "notes-api/rabit_mq"
+	r "notes-api/repositories"
+	s "notes-api/services"
+	"notes-api/utils"
 )
 
 type H map[string]interface{}
 
-// GetListNotes Get all notes endpoint
-func GetListNotes(db *sql.DB) echo.HandlerFunc {
-
+// GetAllNotes Get all notes endpoint
+func GetAllNotes(noteRepository *r.NoteRepository, ch *amqp.Channel, q amqp.Queue) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		queryString := c.QueryParam("query_str")
-		page, err := strconv.Atoi(c.QueryParam("page"))
-		if err != nil || page < 0 {
-			return c.JSON(http.StatusUnprocessableEntity, m.BaseResponseErrors{
-				Code: 1,
-				Errors: map[string]string{
-					"message": "page should be type int and greater than or equal to 0",
-				},
-			})
+		pagination := utils.GetPaginationInfo(c)
+		response := s.FindAllNotes(*noteRepository, pagination)
+		code := http.StatusOK
+		if !response.Success {
+			code = http.StatusBadRequest
 		}
-		limit, _ := strconv.Atoi(c.QueryParam("limit"))
-		if err != nil || limit < 0 || limit > 100 {
-			limit = 50
-		}
-
-		res := m.GetNotes(db, queryString, page, limit)
-		return c.JSON(http.StatusOK, m.BaseResponseSuccess{
-			Code:   0,
-			Result: res,
-		})
+		rb.PublicMessage(ch, q, fmt.Sprintf("GET | GetAllNotes | status: %d", code))
+		return c.JSON(code, response)
 	}
 }
 
 // GetDetailNotes Get detail notes endpoint
-func GetDetailNotes(db *sql.DB) echo.HandlerFunc {
+func GetDetailNotes(noteRepository *r.NoteRepository, ch *amqp.Channel, q amqp.Queue) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		id, _ := strconv.Atoi(c.Param("id"))
-		res, err := m.GetNote(db, id)
-		if err != nil {
-			return c.NoContent(http.StatusNotFound)
-		}
-		return c.JSON(http.StatusOK, m.BaseResponseSuccess{
-			Code:   0,
-			Result: res,
-		})
+		id := c.Param("id")
+		res := s.FindOneNoteById(id, *noteRepository)
+		rb.PublicMessage(ch, q, fmt.Sprintf("GET | GetDetailNotes | status: %d", 200))
+		return c.JSON(http.StatusOK, res)
 	}
 }
 
 // PutNote endpoint
-func PutNote(db *sql.DB) echo.HandlerFunc {
+func PutNote(noteRepository *r.NoteRepository, ch *amqp.Channel, q amqp.Queue) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		// Instantiate a new note
 		var note m.Note
-		id, _ := strconv.Atoi(c.Param("id"))
-		// Map imcoming JSON body to the new Note
+		id := c.Param("id")
 		_ = c.Bind(&note)
-
 		log.Println(note)
-
-		// Add a note using our new model
-		rowsAffected, err := m.PutNote(db, id, note.Name, note.Content)
-		// Return a JSON response if successful
-		if err == nil {
-			return c.JSON(http.StatusOK, m.BaseResponseSuccess{
-				Code: 0,
-				Result: map[string]interface{}{
-					"updated": rowsAffected},
-			})
-			// Handle any errors
-		} else {
-			return err
+		code := http.StatusOK
+		response := s.UpdateNoteById(id, &note, *noteRepository)
+		if !response.Success {
+			code = http.StatusBadRequest
 		}
+		rb.PublicMessage(ch, q, fmt.Sprintf("PUT | PutNote | status: %d", code))
+		return c.JSON(code, response)
 	}
 }
 
 // CreateNote endpoint
-func CreateNote(db *sql.DB) echo.HandlerFunc {
+func CreateNote(noteRepository *r.NoteRepository, ch *amqp.Channel, q amqp.Queue) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		// Instantiate a new note
 		var note m.Note
-		// Map incoming JSON body to the new Note
 		_ = c.Bind(&note)
-
 		log.Println(note)
-
-		// Add a note using our new model
-		id, err := m.CreateNote(db, note.Name, note.Content)
-		// Return a JSON response if successful
-		if err == nil {
-			return c.JSON(http.StatusOK, m.BaseResponseSuccess{
-				Code: 0,
-				Result: map[string]interface{}{
-					"created": id},
-			})
-			// Handle any errors
-		} else {
-			return err
+		code := http.StatusOK
+		response := s.CreateNote(&note, *noteRepository)
+		if !response.Success {
+			code = http.StatusBadRequest
 		}
+		rb.PublicMessage(ch, q, fmt.Sprintf("POST | CreateNote | status: %d", code))
+		return c.JSON(code, response)
 	}
 }
 
 // DeleteNote endpoint
-func DeleteNote(db *sql.DB) echo.HandlerFunc {
+func DeleteNote(noteRepository *r.NoteRepository, ch *amqp.Channel, q amqp.Queue) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		id, _ := strconv.Atoi(c.Param("id"))
-		// Use our new model to delete a note
-		numDeleted, err := m.DeleteNote(db, id)
-		// Return a JSON response on success
-		if err == nil {
-			return c.JSON(http.StatusOK, m.BaseResponseSuccess{
-				Code: 0,
-				Result: map[string]interface{}{
-					"deleted": numDeleted},
-			})
-			// Handle errors
-		} else {
-			return err
+		id := c.Param("id")
+		code := http.StatusOK
+		response := s.DeleteOneNoteById(id, *noteRepository)
+		if !response.Success {
+			code = http.StatusBadRequest
 		}
+		rb.PublicMessage(ch, q, fmt.Sprintf("DELETE | GetAllNotes | status: %d", code))
+		return c.JSON(code, response)
 	}
 }
