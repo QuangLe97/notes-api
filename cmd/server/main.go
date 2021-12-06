@@ -5,7 +5,7 @@ import (
 
 	"notes-api/database"
 	"notes-api/models"
-	rb "notes-api/rabit_mq"
+	rb "notes-api/rabbit_mq"
 	"notes-api/repositories"
 	"os"
 )
@@ -28,7 +28,7 @@ func main() {
 	noteRepository := repositories.NewNoteRepository(db)
 	e := echo.New()
 	e.Use(middleware.Logger())
-	// RabitMQ
+	// RabbitMQ
 	channel, queue := rb.ConnectChannel()
 	defer channel.Close()
 

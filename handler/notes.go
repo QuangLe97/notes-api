@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 	m "notes-api/models"
-	rb "notes-api/rabit_mq"
+	rb "notes-api/rabbit_mq"
 	r "notes-api/repositories"
 	s "notes-api/services"
 	"notes-api/utils"

@@ -4,7 +4,7 @@ import (
 	"log"
 	"notes-api/database"
 	"notes-api/models"
-	rb "notes-api/rabit_mq"
+	rb "notes-api/rabbit_mq"
 	r "notes-api/repositories"
 	"os"
 )
