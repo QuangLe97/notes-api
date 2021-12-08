@@ -1,4 +1,4 @@
-# TỔNG QUAN
+# Overview
 
 ## Architecture diagram
 ![Architecture.png](Architecture.png)
@@ -35,7 +35,7 @@
 
 
 # START SERVICE
-SET CÁC ENV
+SET ENV
 - DB_PATH=storage.db
 - RABBITMQ_URL=42.119.139.251:31678/
 - RABBITMQ_USER=rabbit-admin
