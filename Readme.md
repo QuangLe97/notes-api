@@ -1,5 +1,10 @@
 # TỔNG QUAN
 
+## Architecture diagram
+![img.png](img.png)
+
+![img_1.png](img_1.png)
+
 ## API
 
 **GET ALL NOTES**
