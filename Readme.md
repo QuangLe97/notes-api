@@ -1,10 +1,9 @@
 # TỔNG QUAN
 
 ## Architecture diagram
-![img.png](img.png)
+![](../../../Architecture.png)
 
-![img_1.png](img_1.png)
-
+![](../../../process.png)
 ## API
 
 **GET ALL NOTES**
